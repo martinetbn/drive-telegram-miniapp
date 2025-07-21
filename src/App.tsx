@@ -1,25 +1,10 @@
 import { useEffect } from 'react';
-import { init, showPopup } from '@telegram-apps/sdk-react';
+import { init } from '@telegram-apps/sdk-react';
 
 const App = () => {
   useEffect(() => {
     try {
       init();
-      showPopup({
-        title: 'Hello',
-        message: 'This is a popup',
-        buttons: [
-          {
-            id: 'yes',
-            text: 'Yes',
-          },
-          {
-            id: 'no',
-            type: 'destructive',
-            text: 'No',
-          },
-        ],
-      });
     } catch (error) {
       console.error(error);
     }
