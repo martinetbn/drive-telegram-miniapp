@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAtom } from 'jotai';
 import {
   obstaclesAtom,
@@ -8,10 +8,7 @@ import {
 } from '../atoms/gameAtoms';
 import { RESET } from 'jotai/utils';
 import obstacle from '../assets/images/obstacle.png';
-import {
-  cloudStorage,
-  shareMessage,
-} from '@telegram-apps/sdk-react';
+import { cloudStorage } from '@telegram-apps/sdk-react';
 
 interface ObstacleProps {
   id: number;
@@ -27,50 +24,50 @@ export default function Obstacle({ id, xPosition, speed }: ObstacleProps) {
   const [yPosition, setYPosition] = useState(-10);
   const positions = ['left-1/16', 'left-5/16', 'left-9/16', 'left-13/16'];
   const [score, setScore] = useAtom(scoreAtom);
+  const isOffScreen = useRef(false);
+  const hasCollided = useRef(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setYPosition((prev) => {
         const newYPosition = prev + 1;
 
-        // Update the obstacle's position in the global state
-        setObstacles((prevObstacles) =>
-          prevObstacles.map((obstacle) =>
-            obstacle.id === id
-              ? { ...obstacle, yPosition: newYPosition }
-              : obstacle,
-          ),
-        );
+        // Check if obstacle is off screen
+        if (newYPosition > 110 && !isOffScreen.current) {
+          isOffScreen.current = true;
+          // Remove from global state when off screen
+          setObstacles((prevObstacles) =>
+            prevObstacles.filter((obstacle) => obstacle.id !== id),
+          );
+        }
 
         return newYPosition;
       });
     }, speed);
 
-    // Cleanup interval to remove obstacles when they go off screen
-    const cleanupInterval = setInterval(() => {
-      setObstacles((prev) => {
-        return prev.filter(
-          (obstacle) => !(obstacle.id === id && obstacle.yPosition > 110),
-        );
-      });
-    }, 1000);
-
     return () => {
       clearInterval(interval);
-      clearInterval(cleanupInterval);
     };
   }, [id, speed, setObstacles]);
 
   useEffect(() => {
-    // if user crashes into obstacle
-    if (yPosition >= 66 && yPosition <= 90 && xPosition === carXPosition) {
-      const highScore = cloudStorage.getItem('highScore');
-      if (score > Number(highScore)) {
-        // send message on telegram
-        const message = `consegui nuevo record chavales: ${score}!`;
-        shareMessage(message);
-        cloudStorage.setItem('highScore', score.toString());
-      }
+    // if user crashes into obstacle and hasn't already collided
+    if (
+      yPosition >= 66 &&
+      yPosition <= 90 &&
+      xPosition === carXPosition &&
+      !hasCollided.current
+    ) {
+      hasCollided.current = true;
+
+      (async () => {
+        const highScore = await cloudStorage.getItem('highScore');
+        if (score > Number(highScore)) {
+          cloudStorage.setItem('highScore', score.toString());
+        }
+      })();
+
+      // Use setTimeout to defer state updates to next tick
       setTimeout(() => {
         setHasGameStarted(false);
         setObstacles(RESET);
@@ -78,7 +75,21 @@ export default function Obstacle({ id, xPosition, speed }: ObstacleProps) {
         setScore(RESET);
       }, 50);
     }
-  }, [yPosition]);
+  }, [
+    yPosition,
+    xPosition,
+    carXPosition,
+    score,
+    setHasGameStarted,
+    setObstacles,
+    setCarXPosition,
+    setScore,
+  ]);
+
+  // Don't render if off screen
+  if (isOffScreen.current) {
+    return null;
+  }
 
   return (
     <img
