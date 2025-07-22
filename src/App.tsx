@@ -1,22 +1,10 @@
-import { showPopup } from '@telegram-apps/sdk-react';
+import { useAtom } from 'jotai';
+import { hasGameStartedAtom } from './atoms/gameAtoms';
+import Play from './views/Play';
+import Game from './views/Game';
 
-const App = () => {
-  return (
-    <div className="flex flex-col items-center justify-center h-screen">
-      <h1 className="text-4xl font-bold">Rsbuild with React</h1>
-      <p className="text-lg">Start building amazing things with Rsbuild.</p>
-      <button
-        onClick={() =>
-          showPopup({
-            title: 'Hello',
-            message: 'This is a popup',
-          })
-        }
-      >
-        Show popup
-      </button>
-    </div>
-  );
-};
+export default function App() {
+  const [hasGameStarted] = useAtom(hasGameStartedAtom);
 
-export default App;
+  return hasGameStarted ? <Game /> : <Play />;
+}
